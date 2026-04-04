@@ -10,18 +10,17 @@
     <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=e6bed3e86946313502146a5dede7c53b"></script>
     <style>
         :root { --primary: #e60012; --bg: #f4f7f9; }
-        body { font-family: 'Segoe UI', Meiryo, sans-serif; background: var(--bg); margin: 0; padding: 10px; }
+        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; }
         .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 350px 1fr; gap: 15px; }
         .panel { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); height: 92vh; display: flex; flex-direction: column; box-sizing: border-box; }
         input, select, button { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
         button { background: var(--primary); color: #fff; border: none; font-weight: bold; cursor: pointer; }
         #map { height: 92vh; border-radius: 12px; background: #e5e3df; }
         .list { flex-grow: 1; overflow-y: auto; border-top: 1px solid #eee; padding-top: 10px; }
-        /* Google版のCSSに合わせて微調整 */
-        .card { padding: 12px; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; line-height: 1.4; }
-        .card.gray { color: #888; background: #fcfcfc; border-left: 4px solid #eee; }
-        .card b { color: var(--primary); }
-        .time-label { display: block; color: #666; font-size: 0.75rem; margin-bottom: 3px; font-weight: normal; }
+        .card { padding: 12px; border-bottom: 1px solid #f5f5f5; font-size: 12px; line-height: 1.6; }
+        .card.gray { color: #888; background: #fafafa; border-left: 4px solid #ddd; }
+        .card b { color: var(--primary); display: block; margin-bottom: 2px; }
+        .time-label { color: #666; font-size: 11px; display: block; margin-bottom: 4px; }
         .dot { background: var(--primary); color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); font-weight: bold; }
         @media (max-width: 800px) { .container { display: flex; flex-direction: column-reverse; } #map { height: 45vh; } .panel { height: auto; } }
     </style>
@@ -50,6 +49,7 @@
         searchCarriers(""); 
     };
 
+    // ★お客様の環境（/api-delivery/ プロキシ）に完全に戻しました★
     async function searchCarriers(text) {
         const query = `query CarrierList($searchText: String) {
             carriers(first: 20, searchText: $searchText) {
@@ -69,7 +69,7 @@
                 data.data.carriers.edges.forEach(e => select.add(new Option(e.node.name, e.node.id)));
                 if (!text && select.length > 0) select.selectedIndex = 0;
             }
-        } catch (e) { console.error("Search Error"); }
+        } catch (e) { console.error("Search Error", e); }
     }
 
     async function startTracking() {
@@ -93,7 +93,7 @@
             if (result.data && result.data.track) {
                 renderRoute(result.data.track.events.edges, cId);
             }
-        } catch (e) { console.error("Track Error"); }
+        } catch (e) { console.error("Track Error", e); }
     }
 
     async function renderRoute(edges, carrierId) {
@@ -102,18 +102,18 @@
         list.innerHTML = "";
         const coords = [];
         const meta = [];
-        let lastValidLocationName = "";
+        let lastValidLocationName = ""; // 重複判定用変数
 
         for (const edge of edges) {
             const node = edge.node;
             const status = node.status.name;
             const fullDesc = (node.description || "").trim();
-            
-            // ★ここから下は、ご提示いただいた「完璧版」のロジックと1文字も違わず完全に同一です★
 
-            // --- 1. 時刻の表示処理 (timeがnullなら何も表示しない) ---
+            // ★ここから下は「完璧版(GoogleMap版)」のロジックと1文字も違わず完全に同一です★
+
+            // --- 1. 時刻の表示処理 ---
             let timeHtml = "";
-            let formattedTime = ""; // ツールチップ用
+            let formattedTime = ""; 
             if (node.time) {
                 const dateObj = new Date(node.time);
                 // フォーマット: 2025/12/20 17:27:00
@@ -149,8 +149,8 @@
 
             // --- 4. 履歴リストへ追加 ---
             const div = document.createElement("div");
-            div.className = `card ${!isRealLocation ? 'gray' : ''}`;
-            div.innerHTML = `<b>${status}</b><br>${timeHtml}${fullDesc}`;
+            div.className = `card ${!isRealLocation ? 'gray' : ''}`; // AMap版のCSSクラスに合わせる
+            div.innerHTML = `<b>${status}</b>${timeHtml}<span>${fullDesc}</span>`;
             list.appendChild(div);
 
             // --- 5. 地図処理 ---
@@ -169,20 +169,14 @@
         if (coords.length > 0) drawMap(coords, meta);
     }
 
+    // ★お客様の環境（/api-places/ 等）に完全に戻しました★
     async function getBestCoord(targetName, carrierId) {
         const isChina = carrierId.startsWith("cn.");
         const country = isChina ? "China" : "Japan";
-        const strictQuery = `"${targetName}"`; // 完全一致検索
+        const strictQuery = `"${targetName}"`; 
 
         let pos = await fetchPlacesV1(strictQuery, country);
         if (pos) return pos;
-
-        // ★追加：Geocode APIの誤爆防止フィルター★
-        // Googleマップの PlacesService が「国際交換局に到着」等を弾いていたのと同じように、
-        // 明確な施設名（市,区,郵便局など）が含まれない日本語は、GeocodeAPIに渡す前にここでストップさせます。
-        if (/[ぁ-んァ-ヶ]/.test(targetName) && !targetName.match(/市|区|町|村|郵便局|支店|営業所/)) {
-            return null;
-        }
 
         pos = await fetchGeocodeV4(targetName, country);
         return pos;
