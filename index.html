@@ -39,7 +39,9 @@
 
 <script>
     let map;
+    // 設定情報
     const GOOGLE_KEY = "AIzaSyDHM7DZddYSOlafGz4Et_u75D6R2-IH12A";
+    const API_URL = "https://apis.tracker.delivery/graphql"; // 直接APIサーバーへ飛ばす
     const AUTH = "TRACKQL-API-KEY AA6d1TAttqgabHvJkWx5asrw:hpGjoOr1gtcz0PNAgxlyenZBDOqNd7xKNUuOLdXiz3";
 
     window.onload = () => {
@@ -47,6 +49,7 @@
         searchCarriers(""); 
     };
 
+    // 業者検索：APIサーバーへ直接POST
     async function searchCarriers(text) {
         const query = `query CarrierList($searchText: String) {
             carriers(first: 20, searchText: $searchText) {
@@ -54,9 +57,12 @@
             }
         }`;
         try {
-            const res = await fetch("/api-delivery/", {
+            const res = await fetch(API_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': AUTH },
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': AUTH 
+                },
                 body: JSON.stringify({ query, variables: { searchText: text || null } })
             });
             const data = await res.json();
@@ -66,9 +72,12 @@
                 data.data.carriers.edges.forEach(e => select.add(new Option(e.node.name, e.node.id)));
                 if (!text && select.length > 0) select.selectedIndex = 0;
             }
-        } catch (e) { console.error("Search Error"); }
+        } catch (e) { 
+            console.error("Search Error:", e); 
+        }
     }
 
+    // 追跡開始：APIサーバーへ直接POST
     async function startTracking() {
         const cId = document.getElementById("carrier-select").value;
         const tNo = document.getElementById("track-no").value;
@@ -81,16 +90,23 @@
             }
         }`;
         try {
-            const res = await fetch("/api-delivery/", {
+            const res = await fetch(API_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': AUTH },
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': AUTH 
+                },
                 body: JSON.stringify({ query, variables: { carrierId: cId, trackingNumber: tNo } })
             });
             const result = await res.json();
             if (result.data && result.data.track) {
                 renderRoute(result.data.track.events.edges, cId);
+            } else {
+                alert("追跡情報が見つかりませんでした。");
             }
-        } catch (e) { console.error("Track Error"); }
+        } catch (e) { 
+            console.error("Track Error:", e); 
+        }
     }
 
     async function renderRoute(edges, carrierId) {
@@ -99,7 +115,6 @@
         list.innerHTML = "";
         const coords = [];
         const meta = [];
-        let lastLoc = "";
 
         for (const edge of edges) {
             const node = edge.node;
@@ -125,22 +140,18 @@
         if (coords.length > 0) drawMap(coords, meta);
     }
 
-    // 💡 阶梯式坐标获取逻辑
     async function getBestCoord(desc, carrierId) {
-        const country = carrierId.startsWith("cn.") ? "China" : "Japan";
+        const country = (carrierId && carrierId.startsWith("cn.")) ? "China" : "Japan";
         
-        // 1. 全量字符串尝试
         let pos = await fetchCoordinate(desc, country);
         if (pos) return pos;
 
-        // 2. 去掉关键字再试
         const cleaned = desc.replace(/(センター|郵便局|営業所|ベース)/g, "").trim();
         if (cleaned !== desc && cleaned.length > 1) {
             pos = await fetchCoordinate(cleaned, country);
             if (pos) return pos;
         }
 
-        // 3. 提取行政区划再试 (优先 区/市/町/村)
         let adminLoc = desc.match(/.*?[市区町村]/)?.[0] || desc.match(/.*?[都道府県]/)?.[0];
         if (adminLoc && adminLoc !== cleaned) {
             pos = await fetchCoordinate(adminLoc, country);
@@ -152,31 +163,12 @@
 
     async function fetchCoordinate(text, country) {
         const q = `${text}, ${country}`;
-        // 优先 Geocode v4
         try {
-            const res = await fetch(`/api-google-geo/v4/geocode/address/${encodeURIComponent(q)}?key=${GOOGLE_KEY}`, {
-                headers: { 'X-Goog-FieldMask': 'results.location' }
-            });
+            const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(q)}&key=${GOOGLE_KEY}`);
             const data = await res.json();
             if (data.results?.[0]) {
-                const loc = data.results[0].location;
-                console.log(`🎯 Geocode Hit [${q}]`);
-                return { lat: loc.latitude, lng: loc.longitude };
-            }
-        } catch (e) {}
-
-        // 备选 Places v1
-        try {
-            const res = await fetch("/api-places/v1/places:searchText", {
-                method: 'POST',
-                headers: { 'X-Goog-Api-Key': GOOGLE_KEY, 'X-Goog-FieldMask': 'places.location', 'Content-Type': 'application/json' },
-                body: JSON.stringify({ textQuery: q, languageCode: 'ja', maxResultCount: 1 })
-            });
-            const data = await res.json();
-            if (data.places?.[0]) {
-                const loc = data.places[0].location;
-                console.log(`🎯 Places Hit [${q}]`);
-                return { lat: loc.latitude, lng: loc.longitude };
+                const loc = data.results[0].geometry.location;
+                return { lat: loc.lat, lng: loc.lng };
             }
         } catch (e) {}
         return null;
@@ -197,7 +189,9 @@
                 if (path.length > 1) {
                     new AMap.Polyline({ path, strokeColor: "#e60012", strokeWeight: 5, map: map, lineJoin: 'round' });
                     map.setFitView();
-                } else { map.setZoomAndCenter(14, path[0]); }
+                } else { 
+                    map.setZoomAndCenter(14, path[0]); 
+                }
             }
         });
     }
