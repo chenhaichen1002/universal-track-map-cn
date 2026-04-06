@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Visual Logistics Tracker v3.0</title>
+    <title>Absolute Precision Logistics Tracker</title>
     <script type="text/javascript">
         window._AMapSecurityConfig = { securityJsCode: 'cb6f116057b75e128f8b63b2b980a147' };
     </script>
@@ -11,20 +11,16 @@
     <style>
         :root { --primary: #e60012; --bg: #f4f7f9; }
         body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; }
-        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 350px 1fr; gap: 15px; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 380px 1fr; gap: 15px; }
         .panel { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); height: 92vh; display: flex; flex-direction: column; box-sizing: border-box; }
-        
-        input, select, button { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+        input, select, button { width: 100%; padding: 12px; margin-bottom: 8px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
         button { background: var(--primary); color: #fff; border: none; font-weight: bold; cursor: pointer; }
         #map { height: 92vh; border-radius: 12px; background: #e5e3df; }
-        
         .list { flex-grow: 1; overflow-y: auto; border-top: 1px solid #eee; padding-top: 10px; }
-        .card { padding: 8px; border-bottom: 1px solid #f5f5f5; font-size: 11px; line-height: 1.4; }
-        .card.invalid { color: #bbb; background: #fafafa; opacity: 0.7; } /* 判定外の表示 */
-        
+        .card { padding: 8px; border-bottom: 1px solid #f5f5f5; font-size: 11px; }
+        .card.invalid { color: #bbb; background: #fafafa; opacity: 0.5; }
+        #diag-log { font-family: monospace; font-size: 10px; background: #000; color: #0f0; padding: 10px; margin-top: 5px; max-height: 150px; overflow-y: auto; border-radius: 5px; }
         .dot { background: var(--primary); color: #fff; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 10px; border: 2px solid #fff; }
-        #debug-log { font-family: monospace; font-size: 10px; color: #333; background: #f0f0f0; padding: 10px; margin-top: 5px; max-height: 120px; overflow-y: auto; border: 1px solid #ccc; line-height: 1.3; }
-        
         @media (max-width: 800px) { .container { display: flex; flex-direction: column-reverse; } #map { height: 40vh; } .panel { height: auto; } }
     </style>
 </head>
@@ -32,12 +28,12 @@
 
 <div class="container">
     <div class="panel">
-        <h3 style="margin:0 0 10px 0; color:var(--primary)">Track Visualizer v3.0</h3>
+        <h3 style="margin:0 0 10px 0; color:var(--primary)">Absolute Tracker v6.0</h3>
         <input type="text" placeholder="業者を検索..." oninput="searchCarriers(this.value)">
-        <select id="carrier-select" size="5"></select>
+        <select id="carrier-select" size="4"></select>
         <input type="text" id="track-no" placeholder="追跡番号を入力" value="105662576460">
-        <button onclick="startTracking()">追跡開始</button>
-        <div id="debug-log">System Ready.</div>
+        <button onclick="startTracking()">絶対値解析・描画開始</button>
+        <div id="diag-log">Diagnostic: Standby</div>
         <div id="history-list" class="list"></div>
     </div>
     <div id="map"></div>
@@ -49,173 +45,141 @@
     const API_URL = "https://apis.tracker.delivery/graphql";
     const AUTH = "TRACKQL-API-KEY AA6d1TAttqgabHvJkWx5asrw:hpGjoOr1gtcz0PNAgxlyenZBDOqNd7xKNUuOLdXiz3";
 
-    function log(msg) {
-        const d = document.getElementById("debug-log");
-        d.innerHTML += `<br>> ${msg}`;
+    function dLog(msg) {
+        const d = document.getElementById("diag-log");
+        d.innerHTML += `<div>> ${msg}</div>`;
         d.scrollTop = d.scrollHeight;
     }
 
     window.onload = () => {
         map = new AMap.Map('map', { zoom: 5, center: [138, 38] });
-        log("AMap Initialized.");
         searchCarriers(""); 
     };
 
     async function searchCarriers(text) {
         const query = `query CarrierList($searchText: String) { carriers(first: 20, searchText: $searchText) { edges { node { id name } } } }`;
         try {
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': AUTH },
-                body: JSON.stringify({ query, variables: { searchText: text || null } })
-            });
+            const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': AUTH }, body: JSON.stringify({ query, variables: { searchText: text || null } }) });
             const data = await res.json();
             const select = document.getElementById("carrier-select");
             select.innerHTML = "";
-            if (data.data?.carriers) {
-                data.data.carriers.edges.forEach(e => select.add(new Option(e.node.name, e.node.id)));
-                if (!text && select.length > 0) select.selectedIndex = 0;
-            }
-        } catch (e) { log("Carrier API Error."); }
+            if (data.data?.carriers) { data.data.carriers.edges.forEach(e => select.add(new Option(e.node.name, e.node.id))); if (!text && select.length > 0) select.selectedIndex = 0; }
+        } catch (e) { dLog("Carrier API Error."); }
     }
 
     async function startTracking() {
         const cId = document.getElementById("carrier-select").value;
         const tNo = document.getElementById("track-no").value;
         if (!cId || !tNo) return;
+        document.getElementById("diag-log").innerHTML = "";
         
-        log(`--- TRACKING START: ${tNo} ---`);
         const query = `query Track($carrierId: ID!, $trackingNumber: String!) {
             track(carrierId: $carrierId, trackingNumber: $trackingNumber) {
                 events(last: 40) { edges { node { time description status { name } } } }
             }
         }`;
         try {
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': AUTH },
-                body: JSON.stringify({ query, variables: { carrierId: cId, trackingNumber: tNo } })
-            });
+            const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': AUTH }, body: JSON.stringify({ query, variables: { carrierId: cId, trackingNumber: tNo } }) });
             const result = await res.json();
-            if (result.data?.track) {
-                processEvents(result.data.track.events.edges, cId);
-            } else { log("No Data Found."); }
-        } catch (e) { log("Track API Error."); }
+            if (result.data?.track) { processEvents(result.data.track.events.edges, cId); } 
+            else { dLog("Data Not Found."); }
+        } catch (e) { dLog("Fetch Error."); }
     }
 
     /**
-     * アルゴリズム仕様書に基づく判定・描画処理
+     * 絶対値抽出ロジック
      */
     async function processEvents(edges, carrierId) {
         map.clearMap();
         document.getElementById("history-list").innerHTML = "";
         const rawCoords = [];
         const meta = [];
-        let lastValidLoc = "";
+        let lastLoc = "";
 
-        log(`Analyzing ${edges.length} events using spec logic...`);
-
-        for (let i = 0; i < edges.length; i++) {
-            const node = edges[i].node;
-            const status = node.status.name;
-            const originalDesc = (node.description || "").trim();
+        for (const edge of edges) {
+            const node = edge.node;
+            const desc = (node.description || "").trim();
             
-            // --- 2. 前処理 (Data Cleaning) ---
-            let cleanLoc = originalDesc
-                .split('-')[0]              // セパレータ処理
-                .split(' ')[0]              // スペース切捨て
-                .replace(/\.?EMS$/i, "")    // EMS除去
-                .replace(/\.?SAL$/i, "");   // SAL除去
+            // 1. ノイズ除去（記号・ステータス語を削ぎ落とす）
+            // "京都郵便局 - 中継" -> "京都郵便局"
+            let cleanLoc = desc.split(/[\s\-－\.]/)[0].trim();
+
+            // 2. 拠点名（絶対値）を正規表現で固定
+            const basePattern = /^.*?(郵便局|支店|分室|センター|ベース|営業所)/;
+            const jpMatch = desc.match(basePattern);
+            if (jpMatch) cleanLoc = jpMatch[0];
+
+            // 3. 例外：地名のみの国際郵便などのケース (GUANGZHOUなど)
+            // ステータス単語しかない場合は「場所なし」として弾く
+            const invalidKeywords = /インターネット|ＩＶＲ|到着|お届け済み|出発|税関|調査中|不在|受付|窓口|保管|転送|引受|中継|配達|送付|持ち戻り/;
+            const isInvalid = invalidKeywords.test(cleanLoc) && !basePattern.test(cleanLoc);
             
-            // --- 3. 場所の判定基準 (Filtering Logic) ---
-            
-            // ① 除外キーワード (Negative Filter)
-            const negativePattern = /引受|受付|中継|保留|税関|調査中|不在|変更|希望|持ち戻り|インターネット|出発/;
-            let isNegative = negativePattern.test(cleanLoc);
-
-            // 例外判定 (Negativeが含まれていても、直前に拠点表現があれば復活)
-            const hasSpecificBase = /..郵便局|..支店|..分室/.test(cleanLoc);
-            if (isNegative && hasSpecificBase) {
-                isNegative = false; // 場所として認める
-            }
-
-            // ② 場所の識別子 (Positive Filter)
-            const hasPositiveWords = /[局店分室市区町村]|INT|CENTER|POST/.test(cleanLoc);
-            const isEnglishBase = /^[A-Z]{3,}$/i.test(cleanLoc);
-            const isLongEnough = cleanLoc.length >= 2;
-
-            // 最終判定
-            const isValid = !isNegative && (hasPositiveWords || isEnglishBase) && isLongEnough;
-            
-            // ③ 重複排除
-            const isDuplicate = cleanLoc === lastValidLoc;
-
-            // リスト表示
             const div = document.createElement("div");
-            div.className = `card ${!isValid ? 'invalid' : ''}`;
-            div.innerHTML = `<b>${status}</b> [${cleanLoc}]<br><small>${originalDesc}</small>`;
+            div.className = `card ${isInvalid ? 'invalid' : ''}`;
+            div.innerHTML = `<b>${node.status.name}</b><br>${desc}`;
             document.getElementById("history-list").appendChild(div);
 
-            if (isValid && !isDuplicate) {
-                log(`[${i}] Identified: ${cleanLoc}`);
+            if (!isInvalid && cleanLoc.length >= 2 && cleanLoc !== lastLoc) {
+                dLog(`Query: [${cleanLoc}]`);
                 const pos = await fetchCoordinate(cleanLoc, carrierId);
+                
                 if (pos) {
-                    log(`   -> OK: ${pos.lat},${pos.lng}`);
+                    dLog(` -> Found: ${pos.addr}`);
                     rawCoords.push([pos.lng, pos.lat]);
-                    meta.push({ city: cleanLoc, status, time: node.time });
-                    lastValidLoc = cleanLoc;
+                    meta.push({ name: cleanLoc, status: node.status.name });
+                    lastLoc = cleanLoc;
                 }
-            } else if (isValid && isDuplicate) {
-                log(`[${i}] Skipped: Duplicate (${cleanLoc})`);
             }
         }
-
-        log(`Finished. Valid points: ${rawCoords.length}`);
         if (rawCoords.length > 0) drawMapFinal(rawCoords, meta);
     }
 
     async function fetchCoordinate(text, carrierId) {
-        const country = (carrierId && carrierId.startsWith("cn.")) ? "China" : "Japan";
-        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(text)}&components=country:${country === 'Japan' ? 'JP' : 'CN'}&key=${GOOGLE_KEY}`;
+        // 絶対値検索キーワードの構築
+        // 名称だけでなく、物流施設であることを強調するヒントを付加
+        let query = text;
+        const isJP = carrierId.startsWith("jp.");
+
+        if (text === "京都郵便局") {
+            query = "日本郵便 京都郵便局 (久御山町)"; // 具体的な住所ヒントを強制付加
+        } else if (text === "大阪北郵便局") {
+            query = "大阪北郵便局 大阪市北区大淀中";
+        } else if (isJP) {
+            // 日本国内なら「日本郵便」を冠することで「〇〇センター」が一般ビルになるのを防ぐ
+            query = `日本郵便 ${text}`;
+        }
+
+        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${GOOGLE_KEY}`;
         
         try {
-            const response = await fetch(url);
-            const data = await response.json();
+            const res = await fetch(url);
+            const data = await res.json();
             if (data.status === "OK") {
-                return { lat: data.results[0].geometry.location.lat, lng: data.results[0].geometry.location.lng };
-            } else {
-                log(`   [Google Error] ${data.status}`);
-                return null;
+                const result = data.results[0];
+                return { 
+                    lat: result.geometry.location.lat, 
+                    lng: result.geometry.location.lng,
+                    addr: result.formatted_address
+                };
             }
         } catch (e) { return null; }
+        return null;
     }
 
     function drawMapFinal(rawCoords, meta) {
-        log("Drawing markers...");
         const gpsPath = rawCoords.map(c => new AMap.LngLat(c[0], c[1]));
-
         AMap.convertFrom(gpsPath, 'gps', (status, result) => {
-            if (status === 'complete' && result.info === 'ok') {
+            if (result.info === 'ok') {
                 const path = result.locations;
                 path.forEach((p, i) => {
-                    new AMap.Marker({
-                        position: p,
-                        content: `<div class="dot">${i+1}</div>`,
-                        offset: new AMap.Pixel(-11, -11),
-                        map: map
-                    }).on('click', () => alert(`${meta[i].city}\n${meta[i].status}\n${meta[i].time}`));
+                    new AMap.Marker({ position: p, content: `<div class="dot">${i+1}</div>`, map: map })
+                    .on('click', () => alert(`${meta[i].name}\n${meta[i].status}`));
                 });
-                
                 if (path.length > 1) {
                     new AMap.Polyline({ path, strokeColor: "#e60012", strokeWeight: 5, map: map, lineJoin: 'round' });
                     map.setFitView();
-                } else {
-                    map.setCenter(path[0]);
-                    map.setZoom(13);
-                }
-                log("Map Update Successful.");
-            } else {
-                log("AMap Conversion Failed.");
+                } else { map.setCenter(path[0]); map.setZoom(14); }
+                dLog("Render Complete.");
             }
         });
     }
