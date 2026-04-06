@@ -3,70 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Global Tracker Pro - Logistics Visualizer</title>
+    <title>Visual Logistics Tracker</title>
     <script type="text/javascript">
         window._AMapSecurityConfig = { securityJsCode: 'cb6f116057b75e128f8b63b2b980a147' };
     </script>
     <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=e6bed3e86946313502146a5dede7c53b"></script>
     <style>
-        :root { 
-            --primary: #e60012; 
-            --bg: #f4f7f9; 
-            --text-dark: #333;
-            --text-gray: #777;
-        }
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; padding: 10px; color: var(--text-dark); }
-        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 380px 1fr; gap: 15px; }
-        
-        /* サイドパネル */
-        .panel { 
-            background: #fff; padding: 20px; border-radius: 12px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1); height: 92vh; 
-            display: flex; flex-direction: column; box-sizing: border-box; 
-        }
-        .header-title { margin: 0 0 15px 0; color: var(--primary); font-size: 1.4rem; display: flex; align-items: center; gap: 8px; }
-        
-        /* フォーム要素 */
-        input, select, button { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: 0.3s; }
-        input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(230,0,18,0.1); }
+        :root { --primary: #e60012; --bg: #f4f7f9; }
+        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 350px 1fr; gap: 15px; }
+        .panel { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); height: 92vh; display: flex; flex-direction: column; box-sizing: border-box; }
+        input, select, button { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
         button { background: var(--primary); color: #fff; border: none; font-weight: bold; cursor: pointer; }
-        button:hover { opacity: 0.9; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-
-        /* リストエリア */
-        .list { flex-grow: 1; overflow-y: auto; border-top: 2px solid var(--bg); padding-top: 10px; margin-top: 10px; }
-        .card { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; line-height: 1.5; border-left: 4px solid transparent; }
-        .card:hover { background: #fdfdfd; }
-        .card.active { border-left-color: var(--primary); background: #fffefe; }
-        .card.gray { color: var(--text-gray); background: #fafafa; border-left-color: #ddd; }
-        .time-stamp { color: var(--text-gray); font-size: 11px; }
-
-        /* 地図エリア */
-        #map { height: 92vh; border-radius: 12px; background: #e5e3df; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .dot { background: var(--primary); color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-
-        @media (max-width: 900px) { 
-            .container { display: flex; flex-direction: column-reverse; } 
-            #map { height: 45vh; } 
-            .panel { height: auto; max-height: 50vh; } 
-        }
+        #map { height: 92vh; border-radius: 12px; background: #e5e3df; }
+        .list { flex-grow: 1; overflow-y: auto; border-top: 1px solid #eee; padding-top: 10px; }
+        .card { padding: 10px; border-bottom: 1px solid #f5f5f5; font-size: 12px; line-height: 1.6; }
+        .card.gray { color: #999; background: #fafafa; }
+        .dot { background: var(--primary); color: #fff; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 10px; border: 2px solid #fff; }
+        @media (max-width: 800px) { .container { display: flex; flex-direction: column-reverse; } #map { height: 40vh; } .panel { height: auto; } }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="panel">
-        <h3 class="header-title">📦 Global Tracker Pro</h3>
-        
-        <input type="text" placeholder="配送業者を検索..." oninput="searchCarriers(this.value)">
-        <select id="carrier-select" size="5"></select>
-        
+        <h3 style="margin:0 0 15px 0; color:var(--primary)">Track Visualizer</h3>
+        <input type="text" placeholder="業者を検索..." oninput="searchCarriers(this.value)">
+        <select id="carrier-select" size="6"></select>
         <input type="text" id="track-no" placeholder="追跡番号を入力">
-        <button id="btn-track" onclick="startTracking()">追跡を開始する</button>
-        
-        <div id="history-list" class="list">
-            <div style="text-align:center; color:#ccc; margin-top:20px;">追跡結果がここに表示されます</div>
-        </div>
+        <button onclick="startTracking()">追跡開始</button>
+        <div id="history-list" class="list"></div>
     </div>
     <div id="map"></div>
 </div>
@@ -77,18 +43,10 @@
     const AUTH = "TRACKQL-API-KEY AA6d1TAttqgabHvJkWx5asrw:hpGjoOr1gtcz0PNAgxlyenZBDOqNd7xKNUuOLdXiz3";
 
     window.onload = () => {
-        // AMapの初期化 (日本中心に設定)
-        map = new AMap.Map('map', { 
-            zoom: 5, 
-            center: [138, 38],
-            viewMode: '2D'
-        });
+        map = new AMap.Map('map', { zoom: 5, center: [138, 38] });
         searchCarriers(""); 
     };
 
-    /**
-     * 配送業者リストの取得
-     */
     async function searchCarriers(text) {
         const query = `query CarrierList($searchText: String) {
             carriers(first: 20, searchText: $searchText) {
@@ -108,27 +66,13 @@
                 data.data.carriers.edges.forEach(e => select.add(new Option(e.node.name, e.node.id)));
                 if (!text && select.length > 0) select.selectedIndex = 0;
             }
-        } catch (e) {
-            console.error("Carrier Search Error:", e);
-        }
+        } catch (e) { console.error("Search Error"); }
     }
 
-    /**
-     * 追跡開始処理
-     */
     async function startTracking() {
-        const btn = document.getElementById("btn-track");
         const cId = document.getElementById("carrier-select").value;
-        const tNo = document.getElementById("track-no").value.trim();
-
-        if (!cId || !tNo) {
-            alert("業者を選択し、追跡番号を入力してください。");
-            return;
-        }
-
-        btn.disabled = true;
-        btn.innerText = "データ取得中...";
-
+        const tNo = document.getElementById("track-no").value;
+        if (!cId || !tNo) return;
         const query = `query Track($carrierId: ID!, $trackingNumber: String!) {
             track(carrierId: $carrierId, trackingNumber: $trackingNumber) {
                 events(last: 40) {
@@ -136,7 +80,6 @@
                 }
             }
         }`;
-
         try {
             const res = await fetch("/api-delivery/", {
                 method: 'POST',
@@ -144,56 +87,34 @@
                 body: JSON.stringify({ query, variables: { carrierId: cId, trackingNumber: tNo } })
             });
             const result = await res.json();
-            
-            if (result.data?.track?.events?.edges.length > 0) {
-                await renderRoute(result.data.track.events.edges, cId);
-            } else {
-                alert("追跡情報が見つかりませんでした。");
-                document.getElementById("history-list").innerHTML = `<div style="padding:20px; text-align:center;">該当するデータがありません</div>`;
+            if (result.data && result.data.track) {
+                renderRoute(result.data.track.events.edges, cId);
             }
-        } catch (e) {
-            console.error("Tracking Error:", e);
-            alert("データの取得に失敗しました。");
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "追跡を開始する";
-        }
+        } catch (e) { console.error("Track Error"); }
     }
 
-    /**
-     * ルート解析と描画
-     */
     async function renderRoute(edges, carrierId) {
         map.clearMap();
         const list = document.getElementById("history-list");
         list.innerHTML = "";
-        
         const coords = [];
         const meta = [];
-        const skipKeywords = ["受付", "変更", "持ち出し", "不在", "調査中"];
+        let lastLoc = "";
 
-        // 時系列順に処理
-        for (let i = 0; i < edges.length; i++) {
-            const node = edges[i].node;
+        for (const edge of edges) {
+            const node = edge.node;
             const status = node.status.name;
             const desc = (node.description || "").trim();
             
-            // 地図プロットをスキップする判定
-            const isSkip = skipKeywords.some(k => status.includes(k)) || !desc;
+            const skip = ["受付", "変更", "持ち出し", "不在"].some(k => status.includes(k)) || !desc;
             
-            // リスト表示
             const div = document.createElement("div");
-            div.className = `card ${isSkip ? 'gray' : (i === 0 ? 'active' : '')}`;
-            div.innerHTML = `
-                <div class="time-stamp">${node.time}</div>
-                <strong>${status}</strong><br>
-                <span>${desc}</span>
-            `;
+            div.className = `card ${skip ? 'gray' : ''}`;
+            div.innerHTML = `<b>${status}</b><br><small>${node.time}</small><br>${desc}`;
             list.appendChild(div);
 
-            if (isSkip) continue;
+            if (skip) continue;
 
-            // 座標取得
             const pos = await getBestCoord(desc, carrierId);
             if (pos) {
                 coords.push([pos.lng, pos.lat]);
@@ -201,30 +122,26 @@
             }
         }
 
-        if (coords.length > 0) {
-            drawMap(coords, meta);
-        }
+        if (coords.length > 0) drawMap(coords, meta);
     }
 
-    /**
-     * 段階的ジオコーディング・ロジック
-     */
+    // 💡 阶梯式坐标获取逻辑
     async function getBestCoord(desc, carrierId) {
         const country = carrierId.startsWith("cn.") ? "China" : "Japan";
         
-        // 1. そのまま検索
+        // 1. 全量字符串尝试
         let pos = await fetchCoordinate(desc, country);
         if (pos) return pos;
 
-        // 2. 施設用語を除去して検索
-        const cleaned = desc.replace(/(センター|郵便局|営業所|ベース|物流センター|支店)/g, "").trim();
-        if (cleaned && cleaned !== desc) {
+        // 2. 去掉关键字再试
+        const cleaned = desc.replace(/(センター|郵便局|営業所|ベース)/g, "").trim();
+        if (cleaned !== desc && cleaned.length > 1) {
             pos = await fetchCoordinate(cleaned, country);
             if (pos) return pos;
         }
 
-        // 3. 市区町村・都道府県の抽出
-        const adminLoc = desc.match(/.*?[市区町村]/)?.[0] || desc.match(/.*?[都道府県]/)?.[0];
+        // 3. 提取行政区划再试 (优先 区/市/町/村)
+        let adminLoc = desc.match(/.*?[市区町村]/)?.[0] || desc.match(/.*?[都道府県]/)?.[0];
         if (adminLoc && adminLoc !== cleaned) {
             pos = await fetchCoordinate(adminLoc, country);
             if (pos) return pos;
@@ -233,83 +150,54 @@
         return null;
     }
 
-    /**
-     * APIを利用した座標取得 (Geocoding/Places)
-     */
     async function fetchCoordinate(text, country) {
         const q = `${text}, ${country}`;
-        
-        // A: Geocode API v4
+        // 优先 Geocode v4
         try {
             const res = await fetch(`/api-google-geo/v4/geocode/address/${encodeURIComponent(q)}?key=${GOOGLE_KEY}`, {
                 headers: { 'X-Goog-FieldMask': 'results.location' }
             });
             const data = await res.json();
-            if (data.results?.[0]?.location) {
+            if (data.results?.[0]) {
                 const loc = data.results[0].location;
+                console.log(`🎯 Geocode Hit [${q}]`);
                 return { lat: loc.latitude, lng: loc.longitude };
             }
         } catch (e) {}
 
-        // B: Places API (Text Search) v1
+        // 备选 Places v1
         try {
             const res = await fetch("/api-places/v1/places:searchText", {
                 method: 'POST',
-                headers: { 
-                    'X-Goog-Api-Key': GOOGLE_KEY, 
-                    'X-Goog-FieldMask': 'places.location', 
-                    'Content-Type': 'application/json' 
-                },
+                headers: { 'X-Goog-Api-Key': GOOGLE_KEY, 'X-Goog-FieldMask': 'places.location', 'Content-Type': 'application/json' },
                 body: JSON.stringify({ textQuery: q, languageCode: 'ja', maxResultCount: 1 })
             });
             const data = await res.json();
-            if (data.places?.[0]?.location) {
+            if (data.places?.[0]) {
                 const loc = data.places[0].location;
+                console.log(`🎯 Places Hit [${q}]`);
                 return { lat: loc.latitude, lng: loc.longitude };
             }
         } catch (e) {}
-
         return null;
     }
 
-    /**
-     * AMapへの描画
-     */
     function drawMap(coords, meta) {
-        // GPS(WGS84)からAMap座標(GCJ-02)へ変換
         AMap.convertFrom(coords, "gps", (status, result) => {
-            if (status === "complete" && result.locations) {
+            if (status === "complete") {
                 const path = result.locations;
-                
                 path.forEach((p, i) => {
-                    const marker = new AMap.Marker({
+                    new AMap.Marker({
                         position: p,
                         content: `<div class="dot">${i+1}</div>`,
-                        offset: new AMap.Pixel(-12, -12),
-                        map: map,
-                        title: meta[i].status
-                    });
-
-                    marker.on('click', () => {
-                        const info = `【${i+1}】 ${meta[i].status}\n時間: ${meta[i].time}\n場所: ${meta[i].city}`;
-                        alert(info);
-                    });
+                        offset: new AMap.Pixel(-11, -11),
+                        map: map
+                    }).on('click', () => alert(`【${i+1}】${meta[i].time}\n${meta[i].status}\n${meta[i].city}`));
                 });
-
                 if (path.length > 1) {
-                    const polyline = new AMap.Polyline({
-                        path: path,
-                        strokeColor: "#e60012",
-                        strokeWeight: 5,
-                        strokeOpacity: 0.8,
-                        lineJoin: 'round',
-                        showDir: true // 移動方向の矢印表示
-                    });
-                    map.add(polyline);
-                    map.setFitView([polyline]); // 全体が入るように自動調整
-                } else {
-                    map.setZoomAndCenter(12, path[0]);
-                }
+                    new AMap.Polyline({ path, strokeColor: "#e60012", strokeWeight: 5, map: map, lineJoin: 'round' });
+                    map.setFitView();
+                } else { map.setZoomAndCenter(14, path[0]); }
             }
         });
     }
